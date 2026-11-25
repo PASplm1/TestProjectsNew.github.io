@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Шашки онлайн</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#111318;color:#f4f4f5;font:16px system-ui;display:flex;justify-content:center;min-height:100vh}
+main{width:min(100%,520px);padding:22px 16px 30px}h1{text-align:center;font-size:25px;margin:8px 0 5px}.sub{text-align:center;color:#9ca3af;font-size:13px;margin-bottom:20px}
+.panel{background:#1d2028;border:1px solid #303541;border-radius:16px;padding:14px;margin-bottom:14px}
+input{width:100%;padding:13px;border-radius:10px;border:1px solid #414958;background:#11151c;color:white;font-size:16px}
+button{border:0;border-radius:10px;background:#e8e8e8;color:#171717;font-weight:700;font-size:16px;padding:13px;width:100%;margin-top:10px}
+button:disabled{opacity:.45}#status{text-align:center;color:#cbd5e1;font-size:14px;min-height:22px;margin-top:12px}
+#game{display:none}.players{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px;font-size:13px;color:#cbd5e1}.player{background:#202631;padding:9px 10px;border-radius:10px;flex:1}.active{outline:2px solid #7dd3fc}
+#board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border:5px solid #292d35;border-radius:7px;overflow:hidden}
+.cell{display:grid;place-items:center;position:relative;background:#e8d5b5}.cell.dark{background:#79583f}.cell.selected{box-shadow:inset 0 0 0 4px #facc15}
+.cell.hint:after{content:"";width:25%;height:25%;border-radius:50%;background:#a3e635}
+.piece{width:76%;height:76%;border-radius:50%;box-shadow:inset 0 -4px 0 #0005,0 2px 3px #0007;display:grid;place-items:center;pointer-events:none}
+.white{background:linear-gradient(#fff,#c9c9c9);border:2px solid #aaa}.black{background:linear-gradient(#555,#111);border:2px solid #777}
+.king:after{content:"♛";font-size:clamp(16px,5vw,25px);color:#c99b35}
+#message{text-align:center;color:#e5e7eb;margin:12px 0 4px;min-height:22px;font-size:14px}
+.small{color:#9ca3af;font-size:12px;text-align:center;margin-top:12px;line-height:1.5}
+</style></head><body><main>
+<h1>Шашки онлайн</h1><div class="sub">Русские шашки · 8 × 8 · два игрока</div>
+<section id="lobby" class="panel"><div style="margin-bottom:8px;font-size:14px">Ваше имя</div>
+<input id="name" maxlength="18" placeholder="Например, Алексей">
+<button id="join">Найти соперника</button><div id="status">Введите имя и подключитесь</div></section>
+<section id="game" class="panel"><div class="players"><div id="pwhite" class="player">⚪ Белые</div><div id="pblack" class="player">⚫ Чёрные</div></div>
+<div id="board"></div><div id="message"></div><button id="leave" style="background:#343b49;color:white">Выйти из игры</button></section>
+<div class="small">Первый игрок получает белые шашки.<br>Второй игрок получает чёрные.</div>
+</main>
+<script>
+/* ВСТАВЬ СЮДА СВОЙ CLOUDFLARE URL, БЕЗ СЛЭША В КОНЦЕ */
+const SERVER_URL = "https://YOUR-TUNNEL.trycloudflare.com";
+const $=id=>document.getElementById(id);
+let ws=null,myColor=null,state=null,selected=null,legal=[],over=false;
+function connect(){
+ const url=SERVER_URL.replace(/^https:/,"wss:").replace(/^http:/,"ws:")+"/ws";
+ ws=new WebSocket(url);
+ ws.onopen=()=>ws.send(JSON.stringify({type:"join",name:$("name").value.trim()||"Игрок"}));
+ ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==="joined"){myColor=m.color;$("lobby").style.display="none";$("game").style.display="block"}
+ if(m.type==="waiting")$("message").textContent="Ищем соперника… Ожидаем второго игрока.";
+ if(m.type==="state"){state=m.state;over=state.over;selected=null;legal=[];draw()}
+ if(m.type==="opponent_left")$("message").textContent="Соперник отключился."};
+ ws.onerror=()=>{$("status").textContent="Не удалось подключиться. Проверьте адрес сервера."};
+ ws.onclose=()=>{if($("game").style.display!=="none")$("message").textContent="Соединение потеряно. Обновите страницу."};
+}
+function draw(){
+ const board=$("board");board.innerHTML="";
+ for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+  const i=r*8+c,cell=document.createElement("div");cell.className="cell "+((r+c)%2?"dark":"");
+  if(i===selected)cell.classList.add("selected");if(legal.some(m=>m.to===i))cell.classList.add("hint");
+  const p=state.board[i];if(p){const piece=document.createElement("div");piece.className="piece "+(p[0]==="w"?"white":"black")+(p.length===2?" king":"");cell.appendChild(piece)}
+  cell.onclick=()=>click(i);board.appendChild(cell)
+ }
+ $("pwhite").textContent="⚪ "+state.names.w+" (белые)";$("pblack").textContent="⚫ "+state.names.b+" (чёрные)";
+ $("pwhite").classList.toggle("active",state.turn==="w"&&!over);$("pblack").classList.toggle("active",state.turn==="b"&&!over);
+ $("message").textContent=over?(state.winner===myColor?"Вы победили!":"Вы проиграли."):(state.turn===myColor?"Ваш ход":"Ход соперника");
+}
+function click(i){
+ if(!state||over||state.turn!==myColor)return;
+ const chosen=legal.find(m=>m.to===i);
+ if(selected!==null&&chosen){ws.send(JSON.stringify({type:"move",from:selected,to:i}));selected=null;legal=[];return}
+ const p=state.board[i];if(p&&p[0]===myColor){selected=i;legal=state.moves.filter(m=>m.from===i)}else{selected=null;legal=[]}draw()
+}
+$("join").onclick=()=>{$("join").disabled=true;$("status").textContent="Подключаемся…";connect()};
+$("leave").onclick=()=>{if(ws)ws.close();location.reload()};
+</script></body></html>
