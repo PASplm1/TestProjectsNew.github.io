@@ -1,66 +1,128 @@
 <!doctype html>
-<html lang="ru"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>Шашки онлайн</title>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Шашки</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#111318;color:#f4f4f5;font:16px system-ui;display:flex;justify-content:center;min-height:100vh}
-main{width:min(100%,520px);padding:22px 16px 30px}h1{text-align:center;font-size:25px;margin:8px 0 5px}.sub{text-align:center;color:#9ca3af;font-size:13px;margin-bottom:20px}
-.panel{background:#1d2028;border:1px solid #303541;border-radius:16px;padding:14px;margin-bottom:14px}
-input{width:100%;padding:13px;border-radius:10px;border:1px solid #414958;background:#11151c;color:white;font-size:16px}
-button{border:0;border-radius:10px;background:#e8e8e8;color:#171717;font-weight:700;font-size:16px;padding:13px;width:100%;margin-top:10px}
-button:disabled{opacity:.45}#status{text-align:center;color:#cbd5e1;font-size:14px;min-height:22px;margin-top:12px}
-#game{display:none}.players{display:flex;justify-content:space-between;gap:8px;margin-bottom:10px;font-size:13px;color:#cbd5e1}.player{background:#202631;padding:9px 10px;border-radius:10px;flex:1}.active{outline:2px solid #7dd3fc}
-#board{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border:5px solid #292d35;border-radius:7px;overflow:hidden}
-.cell{display:grid;place-items:center;position:relative;background:#e8d5b5}.cell.dark{background:#79583f}.cell.selected{box-shadow:inset 0 0 0 4px #facc15}
-.cell.hint:after{content:"";width:25%;height:25%;border-radius:50%;background:#a3e635}
-.piece{width:76%;height:76%;border-radius:50%;box-shadow:inset 0 -4px 0 #0005,0 2px 3px #0007;display:grid;place-items:center;pointer-events:none}
-.white{background:linear-gradient(#fff,#c9c9c9);border:2px solid #aaa}.black{background:linear-gradient(#555,#111);border:2px solid #777}
-.king:after{content:"♛";font-size:clamp(16px,5vw,25px);color:#c99b35}
-#message{text-align:center;color:#e5e7eb;margin:12px 0 4px;min-height:22px;font-size:14px}
-.small{color:#9ca3af;font-size:12px;text-align:center;margin-top:12px;line-height:1.5}
-</style></head><body><main>
-<h1>Шашки онлайн</h1><div class="sub">Русские шашки · 8 × 8 · два игрока</div>
-<section id="lobby" class="panel"><div style="margin-bottom:8px;font-size:14px">Ваше имя</div>
-<input id="name" maxlength="18" placeholder="Например, Алексей">
-<button id="join">Найти соперника</button><div id="status">Введите имя и подключитесь</div></section>
-<section id="game" class="panel"><div class="players"><div id="pwhite" class="player">⚪ Белые</div><div id="pblack" class="player">⚫ Чёрные</div></div>
-<div id="board"></div><div id="message"></div><button id="leave" style="background:#343b49;color:white">Выйти из игры</button></section>
-<div class="small">Первый игрок получает белые шашки.<br>Второй игрок получает чёрные.</div>
-</main>
+*{box-sizing:border-box}
+:root{--bg:#f5f5f3;--fg:#161616;--mu:#85857f;--cd:#fff;--ln:#e5e5e1;--lt:#ecebe3;--dk:#76896a;--hl:#f0c94d;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#111;--fg:#f1f1ee;--mu:#8b8b86;--cd:#1b1b1b;--ln:#2b2b2b;--lt:#cfcfc4;--dk:#566a4c;color-scheme:dark}}
+body{margin:0;min-height:100dvh;display:grid;place-items:center;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:max(16px,env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+main{width:min(100%,440px)}
+h1{font-size:26px;font-weight:650;margin:0 0 4px;letter-spacing:-.02em}
+.c{display:flex;flex-direction:column;gap:12px}
+input{font:inherit;padding:14px 16px;border-radius:14px;border:1px solid var(--ln);background:var(--cd);color:var(--fg);outline:0;width:100%}
+input:focus{border-color:var(--fg)}
+button{font:inherit;font-weight:600;padding:14px;border-radius:14px;border:1px solid var(--fg);background:var(--fg);color:var(--bg);cursor:pointer}
+button:disabled{opacity:.3}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two button{background:none;color:var(--fg);border-color:var(--ln)}
+.two button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+a{color:var(--mu);text-align:center;font-size:14px;cursor:pointer}
+.e{color:#d4533b;margin:0;min-height:1.4em;font-size:14px}
+.m{color:var(--mu);margin:8px 0 0;font-size:14px}
+.row{display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;background:var(--cd);border:1px solid var(--ln)}
+.row b{flex:1;font-weight:600}
+.row.w b{color:var(--mu);font-weight:400}
+i{font-style:normal;color:var(--mu);font-size:14px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ln)}
+.dot.on{background:#4caf6a}
+.top{display:flex;justify-content:space-between;align-items:center;padding:10px 4px}
+.bar{display:flex;align-items:center;gap:10px;opacity:.5}
+.bar.a{opacity:1}
+.bar b{font-weight:600}
+.ch{width:12px;height:12px;border-radius:50%;border:1px solid var(--ln)}
+.ch.w{background:#f8f7f3}
+.ch.b{background:#26262b}
+time,.st{color:var(--mu);font-size:14px;font-variant-numeric:tabular-nums}
+.bd{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--ln)}
+.s{display:grid;place-items:center;position:relative}
+.s.lt{background:var(--lt)}
+.s.dk{background:var(--dk)}
+.s.sel{background:var(--hl)}
+.p{width:78%;aspect-ratio:1;border-radius:50%;position:relative}
+.p.w{background:#f8f7f3;box-shadow:inset 0 -3px 0 #0003,0 1px 2px #0004}
+.p.b{background:#26262b;box-shadow:inset 0 -3px 0 #fff2,0 1px 2px #0004}
+.p.k::after{content:"";position:absolute;inset:26%;border-radius:50%;border:2px solid var(--hl)}
+.p.mv{outline:2px solid var(--hl);outline-offset:1px}
+.p.x{opacity:.3}
+em{position:absolute;width:28%;aspect-ratio:1;border-radius:50%;background:var(--hl)}
+.ov{position:fixed;inset:0;display:grid;place-items:center;background:#000a;padding:16px}
+.ov .c{background:var(--cd);padding:28px;border-radius:20px;width:min(100%,340px);text-align:center}
+</style>
+</head>
+<body>
+<main id="app"></main>
 <script>
-/* ВСТАВЬ СЮДА СВОЙ CLOUDFLARE URL, БЕЗ СЛЭША В КОНЦЕ */
-const SERVER_URL = "https://YOUR-TUNNEL.trycloudflare.com";
-const $=id=>document.getElementById(id);
-let ws=null,myColor=null,state=null,selected=null,legal=[],over=false;
-function connect(){
- const url=SERVER_URL.replace(/^https:/,"wss:").replace(/^http:/,"ws:")+"/ws";
- ws=new WebSocket(url);
- ws.onopen=()=>ws.send(JSON.stringify({type:"join",name:$("name").value.trim()||"Игрок"}));
- ws.onmessage=e=>{const m=JSON.parse(e.data);if(m.type==="joined"){myColor=m.color;$("lobby").style.display="none";$("game").style.display="block"}
- if(m.type==="waiting")$("message").textContent="Ищем соперника… Ожидаем второго игрока.";
- if(m.type==="state"){state=m.state;over=state.over;selected=null;legal=[];draw()}
- if(m.type==="opponent_left")$("message").textContent="Соперник отключился."};
- ws.onerror=()=>{$("status").textContent="Не удалось подключиться. Проверьте адрес сервера."};
- ws.onclose=()=>{if($("game").style.display!=="none")$("message").textContent="Соединение потеряно. Обновите страницу."};
+const $=s=>document.querySelector(s),L=localStorage,A=$('#app'),
+esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])),
+fmt=ms=>{const s=Math.max(0,Math.floor(ms/1000));return String(s/60|0).padStart(2,'0')+':'+String(s%60).padStart(2,'0')},
+nm=c=>c==='w'?'Белые':c==='b'?'Чёрные':'—',
+send=o=>ws&&ws.readyState===1&&ws.send(JSON.stringify(o)),
+tick=()=>{const t=$('#tm');if(t&&S)t.textContent=fmt(S.ph==='play'?Date.now()-S.t0:S.el)};
+let name=L.n||'',ws,S,sel=-1,host='',got=0;
+const id=L.id||(L.id=Math.random().toString(36).slice(2)+Date.now().toString(36));
+
+function ask(){A.innerHTML=`<div class="c"><h1>Как вас зовут?</h1><input id="i" maxlength="16" placeholder="Имя" value="${esc(name)}" autocomplete="off"><button onclick="setName()">Далее</button></div>`}
+function setName(){const v=$('#i').value.trim();if(!v)return;name=L.n=v;link()}
+function link(e=''){A.innerHTML=`<div class="c"><h1>${esc(name)}</h1><input id="i" placeholder="Вставьте ссылку" autocapitalize="off" autocorrect="off" spellcheck="false"><p class="e">${e}</p><button onclick="go()">Подключиться</button><a onclick="ask()">Сменить имя</a></div>`}
+
+function go(){
+  const m=/[a-z0-9-]+\.trycloudflare\.com/i.exec($('#i').value);
+  if(!m)return link('Не похоже на ссылку');
+  host=m[0].toLowerCase();got=0;S=null;conn();
 }
+function conn(){
+  ws=new WebSocket('wss://'+host);
+  ws.onopen=()=>send({t:'join',id,n:name});
+  ws.onmessage=e=>{
+    const m=JSON.parse(e.data);
+    if(m.t==='full'){host='';ws.close();return link('Комната занята')}
+    S=m;got=1;S.t0=Date.now()-m.el;sel=-1;draw();
+  };
+  ws.onclose=()=>{
+    if(!host)return;
+    if(got)setTimeout(conn,1500);else{host='';link('Не удалось подключиться')}
+  };
+}
+
 function draw(){
- const board=$("board");board.innerHTML="";
- for(let r=0;r<8;r++)for(let c=0;c<8;c++){
-  const i=r*8+c,cell=document.createElement("div");cell.className="cell "+((r+c)%2?"dark":"");
-  if(i===selected)cell.classList.add("selected");if(legal.some(m=>m.to===i))cell.classList.add("hint");
-  const p=state.board[i];if(p){const piece=document.createElement("div");piece.className="piece "+(p[0]==="w"?"white":"black")+(p.length===2?" king":"");cell.appendChild(piece)}
-  cell.onclick=()=>click(i);board.appendChild(cell)
- }
- $("pwhite").textContent="⚪ "+state.names.w+" (белые)";$("pblack").textContent="⚫ "+state.names.b+" (чёрные)";
- $("pwhite").classList.toggle("active",state.turn==="w"&&!over);$("pblack").classList.toggle("active",state.turn==="b"&&!over);
- $("message").textContent=over?(state.winner===myColor?"Вы победили!":"Вы проиграли."):(state.turn===myColor?"Ваш ход":"Ход соперника");
+  const me=S.pl[S.you],op=S.pl[1-S.you];
+  if(!me)return;
+  S.ph==='lobby'?lobby(me,op):game(me,op);
 }
-function click(i){
- if(!state||over||state.turn!==myColor)return;
- const chosen=legal.find(m=>m.to===i);
- if(selected!==null&&chosen){ws.send(JSON.stringify({type:"move",from:selected,to:i}));selected=null;legal=[];return}
- const p=state.board[i];if(p&&p[0]===myColor){selected=i;legal=state.moves.filter(m=>m.from===i)}else{selected=null;legal=[]}draw()
+
+function lobby(me,op){
+  const bt=c=>`<button class="${me.c===c?'on':''}" ${op&&op.c===c?'disabled':''} onclick="send({t:'color',c:'${c}'})">${nm(c)}</button>`,
+  row=p=>`<div class="row ${p?'':'w'}"><span class="dot ${p&&p.on?'on':''}"></span><b>${p?esc(p.n):'Ждём соперника…'}</b><i>${p?nm(p.c):''}</i></div>`;
+  A.innerHTML=`<div class="c"><h1>${S.you?'Вы гость':'Вы хост'}</h1>${row(me)}${row(op)}<p class="m">Выберите цвет</p><div class="two">${bt('w')}${bt('b')}</div></div>`;
 }
-$("join").onclick=()=>{$("join").disabled=true;$("status").textContent="Подключаемся…";connect()};
-$("leave").onclick=()=>{if(ws)ws.close();location.reload()};
-</script></body></html>
+
+function game(me,op){
+  const play=S.ph==='play',mine=play&&S.turn===me.c,flip=me.c==='b',Lg=mine?S.L:[];
+  if(mine&&S.cont>=0)sel=S.cont;
+  const tg=Lg.filter(m=>m[0]===sel).map(m=>m[1]),fr=Lg.map(m=>m[0]);
+  let h='';
+  for(let k=0;k<64;k++){
+    const i=flip?63-k:k,p=S.b[i];
+    h+=`<div class="s ${((i>>3)+(i&7))%2?'dk':'lt'} ${i===sel?'sel':''}" onclick="tap(${i})">${p?`<span class="p ${p.toLowerCase()} ${p<'a'?'k':''} ${S.dead.includes(i)?'x':''} ${fr.includes(i)?'mv':''}"></span>`:''}${tg.includes(i)?'<em></em>':''}</div>`;
+  }
+  const bar=(p,a)=>`<div class="bar ${a?'a':''}"><span class="dot ${p.on?'on':''}"></span><b>${esc(p.n)}</b><span class="ch ${p.c}"></span></div>`,
+  st=!play?'':mine?'Ваш ход':'Ход: '+esc(op.n),
+  ov=play?'':`<div class="ov"><div class="c"><h1>${S.win===me.c?'Вы победили':'Победа: '+esc(op.n)}</h1><p class="m">Время партии ${fmt(S.el)}</p><button onclick="send({t:'reset'})">Заново</button></div></div>`;
+  A.innerHTML=`<div class="top">${bar(op,play&&!mine)}<time id="tm"></time></div><div class="bd">${h}</div><div class="top">${bar(me,mine)}<span class="st">${st}</span></div>${ov}`;
+  tick();
+}
+
+function tap(i){
+  if(!S||S.ph!=='play'||S.turn!==S.pl[S.you].c)return;
+  if(sel>=0&&S.L.some(m=>m[0]===sel&&m[1]===i))return send({t:'move',f:sel,to:i});
+  if(S.cont<0){sel=S.L.some(m=>m[0]===i)?i:-1;draw()}
+}
+
+setInterval(tick,500);
+name?link():ask();
+</script>
+</body>
+</html>
