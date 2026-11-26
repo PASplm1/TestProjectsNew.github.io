@@ -17,6 +17,8 @@ input:focus{border-color:var(--fg)}
 button{font:inherit;font-weight:600;padding:14px;border-radius:14px;border:1px solid var(--fg);background:var(--fg);color:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .22s cubic-bezier(.3,1.5,.5,1),opacity .2s,background .2s,color .2s}
 button:active:not(:disabled){transform:scale(1.06)}
 button:disabled{opacity:.3}
+.sm{padding:6px 12px;font-size:13px;border-radius:10px;background:none;color:var(--fg);border-color:var(--ln)}
+.rt{display:flex;align-items:center;gap:12px}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .two button{background:none;color:var(--fg);border-color:var(--ln)}
 .two button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
@@ -89,6 +91,7 @@ function conn(){
   ws.onmessage=e=>{
     const m=JSON.parse(e.data);
     if(m.t==='full'){host='';ws.close();return link('Комната занята')}
+    if(m.t==='kicked'){host='';got=0;S=null;ws.close();return link('Хост исключил вас из комнаты')}
     S=m;got=1;S.t0=Date.now()-m.el;sel=-1;draw();
   };
   ws.onclose=()=>{
@@ -96,6 +99,9 @@ function conn(){
     if(got)setTimeout(conn,1500);else{host='';link('Не удалось подключиться')}
   };
 }
+
+function kick(){const op=S&&S.pl[1];if(op&&confirm('Выгнать '+op.n+'?'))send({t:'kick'})}
+function leave(){send({t:'leave'});host='';got=0;S=null;pb=null;pd=[];ws&&ws.close();link()}
 
 function draw(){
   const me=S.pl[S.you],op=S.pl[1-S.you];
@@ -106,8 +112,8 @@ function draw(){
 function lobby(me,op){
   pb=null;pd=[];
   const bt=c=>`<button class="${me.c===c?'on':''}" ${op&&op.c===c?'disabled':''} onclick="send({t:'color',c:'${c}'})">${nm(c)}</button>`,
-  row=p=>`<div class="row ${p?'':'w'}"><span class="dot ${p&&p.on?'on':''}"></span><b>${p?esc(p.n):'Ждём соперника…'}</b><i>${p?nm(p.c):''}</i></div>`;
-  A.innerHTML=`<div class="c"><h1>${S.you?'Вы гость':'Вы хост'}</h1>${row(me)}${row(op)}<p class="m">Выберите цвет</p><div class="two">${bt('w')}${bt('b')}</div></div>`;
+  row=(p,k)=>`<div class="row ${p?'':'w'}"><span class="dot ${p&&p.on?'on':''}"></span><b>${p?esc(p.n):'Ждём соперника…'}</b><i>${p?nm(p.c):''}</i>${p&&k&&S.you===0?'<button class="sm" onclick="kick()">Выгнать</button>':''}</div>`;
+  A.innerHTML=`<div class="c"><h1>${S.you?'Вы гость':'Вы хост'}</h1>${row(me)}${row(op,1)}${S.note?`<p class="m">${esc(S.note)}</p>`:''}<p class="m">Выберите цвет</p><div class="two">${bt('w')}${bt('b')}</div><a onclick="leave()">Выйти</a></div>`;
 }
 
 function game(me,op){
@@ -121,8 +127,8 @@ function game(me,op){
   }
   const bar=(p,a)=>`<div class="bar ${a?'a':''}"><span class="dot ${p.on?'on':''}"></span><b>${esc(p.n)}</b><span class="ch ${p.c}"></span></div>`,
   st=!play?'':mine?'Ваш ход':'Ход: '+esc(op.n),
-  ov=play?'':`<div class="ov"><div class="c"><h1>${S.win===me.c?'Вы победили':'Победа: '+esc(op.n)}</h1><p class="m">Время партии ${fmt(S.el)}</p><button onclick="send({t:'reset'})">Заново</button></div></div>`;
-  A.innerHTML=`<div class="top">${bar(op,play&&!mine)}<time id="tm"></time></div><div class="bd">${h}</div><div class="top">${bar(me,mine)}<span class="st">${st}</span></div>${ov}`;
+  ov=play?'':`<div class="ov"><div class="c"><h1>${S.win===me.c?'Вы победили':'Победа: '+esc(op.n)}</h1><p class="m">Время партии ${fmt(S.el)}</p><button onclick="send({t:'reset'})">Заново</button><a onclick="leave()">Выйти</a></div></div>`;
+  A.innerHTML=`<div class="top">${bar(op,play&&!mine)}<div class="rt">${S.you===0?'<button class="sm" onclick="kick()">Выгнать</button>':''}<time id="tm"></time></div></div><div class="bd">${h}</div><div class="top">${bar(me,mine)}<span class="st">${st}</span></div><div class="c" style="padding-top:8px"><a onclick="leave()">Выйти</a></div>${ov}`;
   tick();fx();
 }
 
