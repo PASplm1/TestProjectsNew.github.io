@@ -186,7 +186,7 @@ button.off{opacity:.3;cursor:default;background:rgba(0,0,0,.4)!important;transfo
 </div>
 <script>
 (()=>{'use strict';
-const NH=(()=>{try{const h=(/[a-z0-9-]+\.trycloudflare\.com/i.exec(location.hash)||[])[0];if(h)localStorage.setItem('bj-host',h.toLowerCase());return sessionStorage.getItem('bj-go')?localStorage.getItem('bj-host')||'':''}catch(e){return ''}})(),NET=!!NH;
+const NH=(()=>{try{const h=(/[a-z0-9-]+\.trycloudflare\.com/i.exec(location.hash)||[])[0]||(/\.trycloudflare\.com$/i.test(location.hostname)?location.hostname:'');if(h)localStorage.setItem('bj-host',h.toLowerCase());return sessionStorage.getItem('bj-go')?localStorage.getItem('bj-host')||'':''}catch(e){return ''}})(),NET=!!NH;
 const $=s=>document.querySelector(s),T=$('#T'),M=$('#msg'),ctl=$('#ctl'),
 sleep=ms=>new Promise(r=>setTimeout(r,ms)),
 mk=(c,p=T)=>{const e=document.createElement('div');e.className=c;p.append(e);return e},
@@ -466,33 +466,45 @@ nid=(()=>{try{return localStorage.getItem('bj-id')||(localStorage.setItem('bj-id
 let ws=null,Sn=null,pv=null,got=0,nc={},nh={},nl=[],tA=0;
 
 /* ---- экран «Сессия»: поиск хоста 3 секунды ---- */
-let pws=null,pto=0;
-function stopProbe(){clearTimeout(pto);if(pws){pws.onopen=pws.onmessage=pws.onerror=pws.onclose=null;try{pws.close()}catch(e){}pws=null}}
+let pws=null,pto=0,pgen=0;
+function stopProbe(){pgen++;clearTimeout(pto);if(pws){pws.onopen=pws.onmessage=pws.onerror=pws.onclose=null;try{pws.close()}catch(e){}pws=null}}
 function openSess(n){
  $('#pwho').textContent=n;view('ss');
  let h='';try{h=localStorage.getItem('bj-host')||''}catch(e){}
  $('#plink').value=h;
- h?probe(h):(setStat('Вставьте ссылку на сервер',0),$('#s1').style.display='none');
+ h?probe(h):(setStat('Вставьте ссылку на сервер из Telegram',0),$('#s1').style.display='none');
 }
 function setStat(t,spin){const e=$('#sstat');e.textContent=t;e.className='sstat'+(spin?' spin':'')}
 function probe(h){
- stopProbe();$('#s1').style.display='none';setStat('Поиск хоста…',1);
- let done=false;
- const fail=()=>{if(done)return;done=true;stopProbe();setStat('Хост не найден. Проверьте ссылку',0)};
- pto=setTimeout(fail,3000);
- try{pws=new WebSocket('wss://'+h)}catch(e){return fail()}
- pws.onopen=()=>pws.send(JSON.stringify({t:'peek',id:nid}));
- pws.onerror=fail;pws.onclose=()=>{if(!done)fail()};
- pws.onmessage=e=>{
-  let m;try{m=JSON.parse(e.data)}catch(x){return}
-  if(m.t!=='info'||done)return;
-  done=true;stopProbe();
-  const b=$('#s1');b.style.display='';b.disabled=!!m.full;
-  b.innerHTML=m.full?'<b>Сессия заполнена</b>':m.host?`<b>Хост: ${esc(m.host)}</b><small>Подключиться · игроков ${m.n} из ${m.max}</small>`:'<b>Создать сессию</b><small>Вы станете хостом</small>';
-  setStat(m.host?'Хост найден':'Свободный сервер',0);
-  b.onclick=()=>{SND.tick();try{localStorage.setItem('bj-host',h);sessionStorage.setItem('bj-go','1')}catch(x){}location.reload()};
+ stopProbe();const gen=pgen,t0=Date.now();$('#s1').style.display='none';setStat('Поиск хоста…',1);
+ const attempt=()=>{
+  if(gen!==pgen)return;
+  if(Date.now()-t0>25000){setStat('Хост не найден. Проверяю туннель…',0);diag(h,gen);return}
+  if(Date.now()-t0>3500)setStat('Поиск хоста… туннель ещё просыпается',1);
+  let w,fin=false;
+  const off=()=>{clearTimeout(pto);if(w){w.onopen=w.onmessage=w.onerror=w.onclose=null;try{w.close()}catch(e){}}};
+  const next=()=>{if(fin||gen!==pgen)return;fin=true;off();pto=setTimeout(attempt,800)};
+  try{w=new WebSocket('wss://'+h)}catch(e){return next()}
+  pws=w;pto=setTimeout(next,4000);
+  w.onopen=()=>w.send(JSON.stringify({t:'peek',id:nid}));
+  w.onerror=next;w.onclose=next;
+  w.onmessage=e=>{
+   let m;try{m=JSON.parse(e.data)}catch(x){return}
+   if(m.t!=='info'||fin||gen!==pgen)return;
+   fin=true;off();pws=null;
+   const b=$('#s1');b.style.display='';b.disabled=!!m.full;
+   b.innerHTML=m.full?'<b>Сессия заполнена</b>':m.host?`<b>Хост: ${esc(m.host)}</b><small>Подключиться · игроков ${m.n} из ${m.max}</small>`:'<b>Создать сессию</b><small>Вы станете хостом</small>';
+   setStat(m.host?'Хост найден':'Свободный сервер',0);
+   b.onclick=()=>{SND.tick();try{localStorage.setItem('bj-host',h);sessionStorage.setItem('bj-go','1')}catch(x){}location.reload()};
+  };
  };
+ attempt();
 }
+function diag(h,gen){
+ const say=t=>{if(gen===pgen)setStat(t,0)};
+ fetch('https://'+h,{mode:'no-cors',cache:'no-store'}).then(()=>say('Туннель отвечает, но сервер игры не принял соединение. Остановите старый запуск (Ctrl+C) и запустите server.sh заново'),()=>say('Туннель не отвечает: ссылка устарела. Вставьте свежую ссылку из Telegram'));
+}
+$('#plink').addEventListener('input',()=>{const h=hostOf($('#plink').value);if(h){try{localStorage.setItem('bj-host',h)}catch(e){}probe(h)}});
 $('#sgo').addEventListener('click',()=>{
  const h=hostOf($('#plink').value);
  if(!h){setStat('Не похоже на ссылку',0);return}
