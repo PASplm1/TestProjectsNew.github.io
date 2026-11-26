@@ -14,7 +14,8 @@ h1{font-size:26px;font-weight:650;margin:0 0 4px;letter-spacing:-.02em}
 .c{display:flex;flex-direction:column;gap:12px}
 input{font:inherit;padding:14px 16px;border-radius:14px;border:1px solid var(--ln);background:var(--cd);color:var(--fg);outline:0;width:100%}
 input:focus{border-color:var(--fg)}
-button{font:inherit;font-weight:600;padding:14px;border-radius:14px;border:1px solid var(--fg);background:var(--fg);color:var(--bg);cursor:pointer}
+button{font:inherit;font-weight:600;padding:14px;border-radius:14px;border:1px solid var(--fg);background:var(--fg);color:var(--bg);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .22s cubic-bezier(.3,1.5,.5,1),opacity .2s,background .2s,color .2s}
+button:active:not(:disabled){transform:scale(1.06)}
 button:disabled{opacity:.3}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .two button{background:none;color:var(--fg);border-color:var(--ln)}
@@ -37,19 +38,28 @@ i{font-style:normal;color:var(--mu);font-size:14px}
 .ch.b{background:#26262b}
 time,.st{color:var(--mu);font-size:14px;font-variant-numeric:tabular-nums}
 .bd{display:grid;grid-template-columns:repeat(8,1fr);aspect-ratio:1;border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px var(--ln)}
-.s{display:grid;place-items:center;position:relative}
+.s{display:grid;place-items:center;position:relative;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .2s}
 .s.lt{background:var(--lt)}
 .s.dk{background:var(--dk)}
 .s.sel{background:var(--hl)}
-.p{width:78%;aspect-ratio:1;border-radius:50%;position:relative}
+.p{width:78%;aspect-ratio:1;border-radius:50%;position:relative;transition:transform .15s}
+.s:active .p:not(.x){transform:scale(1.1)}
 .p.w{background:#f8f7f3;box-shadow:inset 0 -3px 0 #0003,0 1px 2px #0004}
 .p.b{background:#26262b;box-shadow:inset 0 -3px 0 #fff2,0 1px 2px #0004}
 .p.k::after{content:"";position:absolute;inset:26%;border-radius:50%;border:2px solid var(--hl)}
 .p.mv{outline:2px solid var(--hl);outline-offset:1px}
-.p.x{opacity:.3}
-em{position:absolute;width:28%;aspect-ratio:1;border-radius:50%;background:var(--hl)}
-.ov{position:fixed;inset:0;display:grid;place-items:center;background:#000a;padding:16px}
-.ov .c{background:var(--cd);padding:28px;border-radius:20px;width:min(100%,340px);text-align:center}
+.p.up{animation:lift .25s cubic-bezier(.3,1.5,.5,1) both;z-index:2}
+.p.x{opacity:.3;transform:scale(.7)}
+.p.x.nx{animation:hit .5s ease both}
+em{position:absolute;width:28%;aspect-ratio:1;border-radius:50%;background:var(--hl);animation:pop .25s cubic-bezier(.3,1.5,.5,1) both}
+.ov{position:fixed;inset:0;display:grid;place-items:center;background:#000a;padding:16px;animation:fade .3s ease both}
+.ov .c{background:var(--cd);padding:28px;border-radius:20px;width:min(100%,340px);text-align:center;animation:rise .4s cubic-bezier(.2,1.2,.4,1) both}
+@keyframes lift{to{transform:scale(1.16);box-shadow:0 8px 14px #0006}}
+@keyframes pop{from{transform:scale(0)}}
+@keyframes hit{0%{opacity:1;transform:scale(1)}35%{opacity:1;transform:scale(1.25)}100%{opacity:.3;transform:scale(.7)}}
+@keyframes fade{from{opacity:0}}
+@keyframes rise{from{opacity:0;transform:translateY(14px) scale(.96)}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -61,7 +71,7 @@ fmt=ms=>{const s=Math.max(0,Math.floor(ms/1000));return String(s/60|0).padStart(
 nm=c=>c==='w'?'Белые':c==='b'?'Чёрные':'—',
 send=o=>ws&&ws.readyState===1&&ws.send(JSON.stringify(o)),
 tick=()=>{const t=$('#tm');if(t&&S)t.textContent=fmt(S.ph==='play'?Date.now()-S.t0:S.el)};
-let name=L.n||'',ws,S,sel=-1,host='',got=0;
+let name=L.n||'',ws,S,sel=-1,host='',got=0,pb=null,pd=[];
 const id=L.id||(L.id=Math.random().toString(36).slice(2)+Date.now().toString(36));
 
 function ask(){A.innerHTML=`<div class="c"><h1>Как вас зовут?</h1><input id="i" maxlength="16" placeholder="Имя" value="${esc(name)}" autocomplete="off"><button onclick="setName()">Далее</button></div>`}
@@ -71,7 +81,7 @@ function link(e=''){A.innerHTML=`<div class="c"><h1>${esc(name)}</h1><input id="
 function go(){
   const m=/[a-z0-9-]+\.trycloudflare\.com/i.exec($('#i').value);
   if(!m)return link('Не похоже на ссылку');
-  host=m[0].toLowerCase();got=0;S=null;conn();
+  host=m[0].toLowerCase();got=0;S=null;pb=null;pd=[];conn();
 }
 function conn(){
   ws=new WebSocket('wss://'+host);
@@ -94,6 +104,7 @@ function draw(){
 }
 
 function lobby(me,op){
+  pb=null;pd=[];
   const bt=c=>`<button class="${me.c===c?'on':''}" ${op&&op.c===c?'disabled':''} onclick="send({t:'color',c:'${c}'})">${nm(c)}</button>`,
   row=p=>`<div class="row ${p?'':'w'}"><span class="dot ${p&&p.on?'on':''}"></span><b>${p?esc(p.n):'Ждём соперника…'}</b><i>${p?nm(p.c):''}</i></div>`;
   A.innerHTML=`<div class="c"><h1>${S.you?'Вы гость':'Вы хост'}</h1>${row(me)}${row(op)}<p class="m">Выберите цвет</p><div class="two">${bt('w')}${bt('b')}</div></div>`;
@@ -106,13 +117,37 @@ function game(me,op){
   let h='';
   for(let k=0;k<64;k++){
     const i=flip?63-k:k,p=S.b[i];
-    h+=`<div class="s ${((i>>3)+(i&7))%2?'dk':'lt'} ${i===sel?'sel':''}" onclick="tap(${i})">${p?`<span class="p ${p.toLowerCase()} ${p<'a'?'k':''} ${S.dead.includes(i)?'x':''} ${fr.includes(i)?'mv':''}"></span>`:''}${tg.includes(i)?'<em></em>':''}</div>`;
+    h+=`<div data-i="${i}" class="s ${((i>>3)+(i&7))%2?'dk':'lt'} ${i===sel?'sel':''}" onclick="tap(${i})">${p?`<span class="p ${p.toLowerCase()} ${p<'a'?'k':''} ${S.dead.includes(i)?'x':''} ${fr.includes(i)?'mv':''} ${i===sel?'up':''} ${S.dead.includes(i)&&pb&&!pd.includes(i)?'nx':''}"></span>`:''}${tg.includes(i)?'<em></em>':''}</div>`;
   }
   const bar=(p,a)=>`<div class="bar ${a?'a':''}"><span class="dot ${p.on?'on':''}"></span><b>${esc(p.n)}</b><span class="ch ${p.c}"></span></div>`,
   st=!play?'':mine?'Ваш ход':'Ход: '+esc(op.n),
   ov=play?'':`<div class="ov"><div class="c"><h1>${S.win===me.c?'Вы победили':'Победа: '+esc(op.n)}</h1><p class="m">Время партии ${fmt(S.el)}</p><button onclick="send({t:'reset'})">Заново</button></div></div>`;
   A.innerHTML=`<div class="top">${bar(op,play&&!mine)}<time id="tm"></time></div><div class="bd">${h}</div><div class="top">${bar(me,mine)}<span class="st">${st}</span></div>${ov}`;
-  tick();
+  tick();fx();
+}
+
+function diff(p,b){
+  let to=-1,from=-1;const gone=[];
+  for(let i=0;i<64;i++)if(b[i]&&!p[i])to=i;
+  if(to<0)return null;
+  const c=b[to].toLowerCase();
+  for(let i=0;i<64;i++)if(p[i]&&!b[i]){if(from<0&&p[i].toLowerCase()===c)from=i;else gone.push(i)}
+  return from<0?null:{from,to,gone};
+}
+
+function fx(){
+  const p=pb,q=pd;pb=S.b.slice();pd=S.dead.slice();
+  if(!p||matchMedia('(prefers-reduced-motion:reduce)').matches)return;
+  const d=diff(p,S.b);if(!d)return;
+  const sq=i=>$('[data-i="'+i+'"]'),a=sq(d.from).getBoundingClientRect(),c=sq(d.to).getBoundingClientRect(),el=sq(d.to).querySelector('.p');
+  if(el){el.style.zIndex=5;el.animate([{transform:`translate(${a.left-c.left}px,${a.top-c.top}px)`},{transform:'none'}],{duration:320,easing:'cubic-bezier(.3,.9,.3,1)'})}
+  d.gone.forEach(i=>{
+    const g=document.createElement('span'),dead=q.includes(i);
+    g.className='p '+p[i].toLowerCase()+(p[i]<'a'?' k':'');
+    g.style.cssText='position:absolute;inset:0;margin:auto;height:78%;pointer-events:none;z-index:4;transition:none';
+    sq(i).appendChild(g);
+    g.animate(dead?[{opacity:.3,transform:'scale(.7)'},{opacity:0,transform:'scale(.2)'}]:[{opacity:1,transform:'scale(1)'},{opacity:1,transform:'scale(1.25)',offset:.3},{opacity:0,transform:'scale(.2)'}],{duration:dead?260:450,delay:dead?0:300,fill:'both'}).onfinish=()=>g.remove();
+  });
 }
 
 function tap(i){
